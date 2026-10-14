@@ -49,9 +49,7 @@ function arabicError(e){
   const m=String((e&&e.message)||e);
   if(e&&e.name==='TypeError'||/fetch|network/i.test(m))return 'لا يوجد اتصال بالإنترنت';
   if(/invalid login/i.test(m))return 'البريد أو كلمة المرور غير صحيحة';
-  if(/already registered|already been registered/i.test(m))return 'هذا البريد مسجل بالفعل، اضغطي «دخول»';
-  if(/not confirmed/i.test(m))return 'افتحي بريدك وأكدي الحساب أولاً ثم سجلي الدخول';
-  if(/at least 6|weak/i.test(m))return 'كلمة المرور قصيرة (6 أحرف على الأقل)';
+  if(/not confirmed/i.test(m))return 'الحساب غير مفعّل بعد، تواصلي مع البائع';
   if(/valid email|invalid format|unable to validate/i.test(m))return 'البريد الإلكتروني غير صحيح';
   if(/rate limit|too many/i.test(m))return 'محاولات كثيرة، انتظري قليلاً ثم أعيدي المحاولة';
   return m;
@@ -61,11 +59,6 @@ function toSession(j){return{access_token:j.access_token,refresh_token:j.refresh
 async function signIn(email,password){
   const j=await api('/auth/v1/token?grant_type=password',{method:'POST',body:{email,password}});
   state.session=toSession(j);await persist();notify();return state.session;
-}
-async function signUp(email,password){
-  const j=await api('/auth/v1/signup',{method:'POST',body:{email,password}});
-  if(j&&j.access_token){state.session=toSession(j);await persist();notify();return{needsConfirm:false}}
-  return{needsConfirm:true};
 }
 async function signOut(){state.session=null;state.meta.dirty=false;clearTimeout(state.timer);await persist();notify()}
 async function token(){
@@ -125,6 +118,6 @@ async function run(getDb,force){
 }
 function resume(getDb){if(enabled()&&state.session&&state.meta.dirty)schedule(getDb,5000)}
 
-const api2={enabled,status,onChange,init,signIn,signUp,signOut,upload,latest,download,markDirty,run,resume,pack,unpack,arabicError,isEmpty,_state:state};
+const api2={enabled,status,onChange,init,signIn,signOut,upload,latest,download,markDirty,run,resume,pack,unpack,arabicError,isEmpty,_state:state};
 if(typeof module!=='undefined'&&module.exports)module.exports=api2;else root.Cloud=api2;
 })(typeof globalThis!=='undefined'?globalThis:this);

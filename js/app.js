@@ -35,7 +35,15 @@ const fld=(id,label,val,type,extra)=>'<label for="'+id+'">'+label+'</label><inpu
 const chip=(t,on,fn)=>'<button class="chip '+(on?'on':'')+'" onclick="'+fn+'">'+h(t)+'</button>';
 const stat=(l,v,c)=>'<div class="stat '+(c||'')+'"><small>'+l+'</small><b>'+v+'</b></div>';
 const emptyBox=(i,t)=>'<div class="empty"><b>'+i+'</b>'+t+'</div>';
-function dl(name,text,mime){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:mime||'text/plain'}));a.download=name;a.click()}
+async function dl(name,text,mime){
+  // داخل تطبيق الأندرويد لا تعمل روابط التنزيل، فنحفظ الملف ثم نفتح قائمة المشاركة (واتساب / درايف / ...)
+  if(NATIVE){
+    try{const P=Capacitor.Plugins,r=await P.Filesystem.writeFile({path:name,data:text,directory:'CACHE',encoding:'utf8'});await P.Share.share({title:name,url:r.uri})}
+    catch(e){if(!/cancel/i.test((e&&e.message)||''))toast('تعذر حفظ الملف','err')}
+    return;
+  }
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:mime||'text/plain'}));a.download=name;a.click();
+}
 const waPhone=p=>{p=String(p||'').replace(/\D/g,'');return p.startsWith('0')?'2'+p:p};
 const waLink=(p,t)=>'https://wa.me/'+waPhone(p)+'?text='+encodeURIComponent(t);
 
@@ -435,17 +443,16 @@ function cloudCard(){
 function updateCloudUI(){const a=$('cloudst'),b=$('cloudbn');if(a)a.innerHTML=cloudStatusHTML();if(b)b.innerHTML=cloudBanner()}
 function closeSheets(){document.querySelectorAll('.ov').forEach(o=>o.remove());document.body.classList.remove('hasov')}
 function cloudLogin(){
-  sheet('☁️ النسخ السحابي','<p style="color:var(--m)">أنشئي حساباً ببريدك الإلكتروني (مرة واحدة) أو سجلي الدخول إن كان لديك حساب. بياناتك لا يراها غيرك.</p>'+
-    fld('ce','البريد الإلكتروني','','email','autocomplete="email" dir="ltr"')+fld('cp','كلمة المرور (6 أحرف على الأقل)','','password','autocomplete="current-password" dir="ltr"')+'<p id="cerr" style="color:var(--r);min-height:22px;margin:8px 0 0"></p>',
-    [{t:'دخول',c:'g',fn:()=>{cloudAuth(false);return false}},{t:'إنشاء حساب',fn:()=>{cloudAuth(true);return false}},{t:'إلغاء',c:'s'}]);
+  sheet('☁️ النسخ السحابي','<p style="color:var(--m)">سجلي الدخول بالبريد الإلكتروني وكلمة المرور اللذين أعطاهما لكِ البائع. بياناتك لا يراها غيرك.</p>'+
+    fld('ce','البريد الإلكتروني','','email','autocomplete="email" dir="ltr"')+fld('cp','كلمة المرور','','password','autocomplete="current-password" dir="ltr"')+'<p id="cerr" style="color:var(--r);min-height:22px;margin:8px 0 0"></p>',
+    [{t:'دخول',c:'g',fn:()=>{cloudAuth();return false}},{t:'إلغاء',c:'s'}]);
 }
-async function cloudAuth(create){
+async function cloudAuth(){
   const email=$('ce').value.trim(),pw=$('cp').value,err=$('cerr');
   if(!email||!pw){err.textContent='اكتبي البريد وكلمة المرور';return}
   err.style.color='var(--m)';err.textContent='⏳ لحظات...';
   try{
-    if(create){const r=await Cloud.signUp(email,pw);if(r.needsConfirm){err.style.color='var(--g)';err.textContent='تم إنشاء الحساب. افتحي بريدك واضغطي رابط التأكيد ثم اضغطي «دخول».';return}}
-    else await Cloud.signIn(email,pw);
+    await Cloud.signIn(email,pw);
     closeSheets();await cloudAfterLogin();
   }catch(e){err.style.color='var(--r)';err.textContent=Cloud.arabicError(e)}
 }
