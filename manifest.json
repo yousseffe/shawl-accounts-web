@@ -1,0 +1,11 @@
+{
+  "name": "حسابات محل الشالات والطرح",
+  "short_name": "حسابات المحل",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#f7f2f5",
+  "theme_color": "#7b2d5b",
+  "icons": [{"src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}]
+}
