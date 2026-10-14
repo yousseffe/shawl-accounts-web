@@ -1,4 +1,4 @@
-const C='shawl-v3',F=['./','index.html','styles.css','js/core.js','js/store.js','js/app.js','manifest.json','icon.svg'];
+const C='shawl-v4',F=['./','index.html','styles.css','js/config.js','js/core.js','js/store.js','js/cloud.js','js/app.js','manifest.json','icon.svg','icon-192.png','icon-512.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(F)));self.skipWaiting()});
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C).map(x=>caches.delete(x)))).then(()=>self.clients.claim())));
 // شبكة أولاً ثم الكاش: يتحدث التطبيق تلقائياً عند وجود إنترنت ويعمل أوفلاين بدونه

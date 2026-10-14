@@ -53,6 +53,12 @@ async function snapshot(json){
   const old=(keys||[]).sort().slice(0,Math.max(0,keys.length-KEEP));
   if(old.length)await tx('snaps','readwrite',s=>{old.forEach(k=>s.delete(k))});
 }
+// لقطة إضافية قبل أي استرجاع حتى لا نفقد البيانات الحالية بالخطأ
+async function snapshotNow(json,label){
+  await put('snaps',new Date().toISOString().slice(0,16).replace('T',' ')+' '+label,json);
+}
+const getKV=key=>get('kv','x:'+key).then(v=>v==null?null:JSON.parse(v));
+const setKV=(key,val)=>put('kv','x:'+key,JSON.stringify(val));
 async function listSnaps(){const k=await tx('snaps','readonly',s=>s.getAllKeys());return(k||[]).sort().reverse()}
 async function getSnap(day){return get('snaps',day).then(j=>j?JSON.parse(j):null)}
 
@@ -63,5 +69,5 @@ if(typeof document!=='undefined'){
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flush()});
   addEventListener('pagehide',()=>flush());
 }
-root.Store={load,save,flush,persist,listSnaps,getSnap};
+root.Store={load,save,flush,persist,listSnaps,getSnap,snapshotNow,getKV,setKV};
 })(globalThis);

@@ -1,11 +1,38 @@
 {
-  "name": "حسابات محل الشالات والطرح",
-  "short_name": "حسابات المحل",
+  "name": "دفتر الشال — حسابات المحل",
+  "short_name": "دفتر الشال",
+  "description": "حسابات محل الشالات والطرح: مبيعات ومشتريات ومخزون وأرباح",
   "lang": "ar",
   "dir": "rtl",
   "start_url": "index.html",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#f7f2f5",
-  "theme_color": "#7b2d5b",
-  "icons": [{"src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}]
+  "orientation": "any",
+  "background_color": "#6d2350",
+  "theme_color": "#6d2350",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
 }

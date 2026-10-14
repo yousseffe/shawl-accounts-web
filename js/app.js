@@ -4,7 +4,7 @@ const{n,r2,sum,addDays,dstr}=Core;
 const NATIVE=!!(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform());
 let db=Core.empty();
 let saveFail=false;
-function save(){Store.save(db,()=>{if(!saveFail)toast('تعذر حفظ البيانات! خذي نسخة احتياطية الآن','err');saveFail=true})}
+function save(){Store.save(db,()=>{if(!saveFail)toast('تعذر حفظ البيانات! خذي نسخة احتياطية الآن','err');saveFail=true});Cloud.markDirty(()=>db)}
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const today=()=>dstr(new Date());
 const h=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -80,9 +80,10 @@ function homeV(){
   const low=db.items.filter(i=>i.qty<=n(i.min)).sort((a,b)=>a.qty-b.qty);
   const debt=db.parties.filter(p=>p.type==='c'&&balance(p.id)>0.005).sort((a,b)=>balance(b.id)-balance(a.id));
   const sup=sum(db.parties.filter(p=>p.type==='s'),p=>Math.max(0,balance(p.id)));
-  const need=(db.items.length||db.sales.length)&&Date.now()-db.lastBackup>7*864e5;
+  const need=(db.items.length||db.sales.length)&&Date.now()-db.lastBackup>7*864e5&&!Cloud.status().signedIn;
   const week=dailySales(addDays(t,-6),t);
   return '<div class="ph"><div><h2>أهلاً بكِ 👋</h2><small style="color:var(--m)">'+new Date().toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long'})+'</small></div><div class="row" style="flex:0"><button class="btn" onclick="go(\'sell\')">🛍️ فاتورة بيع</button><button class="btn s" onclick="go(\'buy\')">📥 شراء</button></div></div>'+
+  '<div id="cloudbn">'+cloudBanner()+'</div>'+
   (need?'<div class="banner"><span>⚠️ لم تأخذي نسخة احتياطية منذ أكثر من أسبوع. البيانات على التابلت فقط.</span><button class="btn sm" onclick="exportDb()">حفظ نسخة الآن</button></div>':'')+
   (!db.items.length?'<div class="banner" style="background:var(--pl);border-color:var(--b)"><span>👋 ابدأي بإضافة أصنافك من «المخزون»، أو جرّبي البرنامج ببيانات تجريبية.</span><button class="btn sm" onclick="demo()">بيانات تجريبية</button></div>':'')+
   '<div class="grid">'+stat('مبيعات اليوم',f(pt.sales)+' ج','')+stat('ربح اليوم (قبل المصروفات)',f(pt.gross)+' ج','g')+stat('صافي ربح الشهر',f(pm.net)+' ج',pm.net<0?'r':'g')+stat('قيمة المخزون (تكلفة)',f(stock)+' ج','o')+'</div>'+
@@ -346,7 +347,8 @@ function setV(){
   return '<div class="ph"><h2>⚙️ الإعدادات والنسخ الاحتياطي</h2></div>'+
   '<div class="card"><b>بيانات المحل (تظهر في الفاتورة)</b>'+fld('s1','اسم المحل',db.shop,'text','onchange="db.shop=this.value;save();render()"')+fld('s2','هاتف المحل',db.phone,'tel','onchange="db.phone=this.value;save()"')+fld('s3','ملاحظة أسفل الفاتورة',db.foot,'text','onchange="db.foot=this.value;save()"')+'</div>'+
   '<div class="card"><b>🔒 قفل البرنامج</b><p style="color:var(--m);margin:6px 0">'+(db.pin?'القفل مفعّل.':'اختياري: رقم سري يُطلب عند فتح البرنامج.')+'</p><div class="row"><button class="btn" onclick="pinForm()">'+(db.pin?'تغيير الرقم':'تفعيل الرقم السري')+'</button>'+(db.pin?'<button class="btn s" onclick="db.pin=\'\';save();render();toast(\'تم إلغاء القفل\',\'ok\')">إلغاء القفل</button>':'')+'</div></div>'+
-  '<div class="card"><b>💾 النسخ الاحتياطي</b><p style="color:var(--m);margin:6px 0">البيانات محفوظة على هذا التابلت فقط. آخر نسخة: <b>'+(db.lastBackup?new Date(db.lastBackup).toLocaleDateString('ar-EG'):'لم تؤخذ بعد')+'</b>. خذي نسخة كل أسبوع وأرسليها لنفسك على واتساب أو جوجل درايف.</p>'+
+  cloudCard()+
+  '<div class="card"><b>💾 نسخة احتياطية كملف</b><p style="color:var(--m);margin:6px 0">البيانات محفوظة على هذا التابلت فقط. آخر نسخة: <b>'+(db.lastBackup?new Date(db.lastBackup).toLocaleDateString('ar-EG'):'لم تؤخذ بعد')+'</b>. خذي نسخة كل أسبوع وأرسليها لنفسك على واتساب أو جوجل درايف.</p>'+
   '<div class="row"><button class="btn g" onclick="exportDb()">⬇ حفظ نسخة احتياطية</button></div><label>استرجاع من نسخة احتياطية</label><input type="file" accept=".json" onchange="importDb(this)"></div>'+
   '<div class="card"><b>🕘 لقطات تلقائية</b><p style="color:var(--m);margin:6px 0">يحفظ البرنامج تلقائياً لقطة يومياً (آخر 14 يوماً) داخل الجهاز. تفيدك لو حذفتِ شيئاً بالغلط.</p><button class="btn s" onclick="snapForm()">استرجاع من لقطة</button></div>'+
   '<div class="card"><b>أدوات</b><div class="row" style="margin-top:8px"><button class="btn s" onclick="demo()">تحميل بيانات تجريبية</button><button class="btn d" onclick="resetDb()">مسح كل البيانات</button></div></div>';
@@ -409,6 +411,72 @@ function lockScreen(){
   $('lk').oninput=e=>{if(e.target.value===db.pin)l.remove();else if(e.target.value.length>=db.pin.length){$('lke').textContent='الرقم غير صحيح';e.target.value=''}};
 }
 
+// ================= السحابة =================
+const cloudAgo=ts=>{if(!ts)return 'لم تتم بعد';const m=Math.round((Date.now()-ts)/60000);return m<1?'الآن':m<60?'منذ '+m+' دقيقة':new Date(ts).toLocaleString('ar-EG',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'})};
+function cloudStatusHTML(){
+  const s=Cloud.status();
+  if(s.busy)return '<span class="badge o">⏳ جارٍ الرفع...</span>';
+  if(s.lastErr)return '<span class="badge r">⚠️ '+h(s.lastErr)+'</span> <small style="color:var(--m)">سنعيد المحاولة تلقائياً</small>';
+  if(s.dirty)return '<span class="badge o">بانتظار الرفع</span>';
+  return '<span class="badge g">☁️ محفوظ في السحابة</span> <small style="color:var(--m)">آخر نسخة: '+cloudAgo(s.lastOk)+'</small>';
+}
+function cloudBanner(){
+  const s=Cloud.status();if(!s.enabled)return '';
+  if(s.signedIn)return '<div style="margin-bottom:12px">'+cloudStatusHTML()+'</div>';
+  if(db.items.length||db.sales.length)return '<div class="banner"><span>☁️ فعّلي النسخ السحابي التلقائي: لو ضاع التابلت ترجع كل بياناتك.</span><button class="btn sm" onclick="cloudLogin()">تفعيل</button></div>';
+  return '';
+}
+function cloudCard(){
+  const s=Cloud.status();
+  if(!s.enabled)return '';
+  if(!s.signedIn)return '<div class="card"><b>☁️ النسخ الاحتياطي السحابي التلقائي</b><p style="color:var(--m);margin:6px 0">يحفظ بياناتك تلقائياً على الإنترنت بعد كل تعديل، فلو ضاع التابلت أو تعطل ترجع كل بياناتك على أي جهاز جديد. يعمل البرنامج بدون إنترنت، وعند عودة الإنترنت يرفع التعديلات.</p><button class="btn g" onclick="cloudLogin()">تفعيل النسخ السحابي</button></div>';
+  return '<div class="card"><b>☁️ النسخ الاحتياطي السحابي</b><p style="margin:6px 0">الحساب: <b dir="ltr">'+h(s.email)+'</b></p><div id="cloudst" style="margin-bottom:10px">'+cloudStatusHTML()+'</div><div class="row"><button class="btn" onclick="cloudNow()">رفع الآن</button><button class="btn s" onclick="cloudRestore()">استرجاع من السحابة</button><button class="btn s" onclick="cloudOut()">تسجيل خروج</button></div></div>';
+}
+function updateCloudUI(){const a=$('cloudst'),b=$('cloudbn');if(a)a.innerHTML=cloudStatusHTML();if(b)b.innerHTML=cloudBanner()}
+function closeSheets(){document.querySelectorAll('.ov').forEach(o=>o.remove());document.body.classList.remove('hasov')}
+function cloudLogin(){
+  sheet('☁️ النسخ السحابي','<p style="color:var(--m)">أنشئي حساباً ببريدك الإلكتروني (مرة واحدة) أو سجلي الدخول إن كان لديك حساب. بياناتك لا يراها غيرك.</p>'+
+    fld('ce','البريد الإلكتروني','','email','autocomplete="email" dir="ltr"')+fld('cp','كلمة المرور (6 أحرف على الأقل)','','password','autocomplete="current-password" dir="ltr"')+'<p id="cerr" style="color:var(--r);min-height:22px;margin:8px 0 0"></p>',
+    [{t:'دخول',c:'g',fn:()=>{cloudAuth(false);return false}},{t:'إنشاء حساب',fn:()=>{cloudAuth(true);return false}},{t:'إلغاء',c:'s'}]);
+}
+async function cloudAuth(create){
+  const email=$('ce').value.trim(),pw=$('cp').value,err=$('cerr');
+  if(!email||!pw){err.textContent='اكتبي البريد وكلمة المرور';return}
+  err.style.color='var(--m)';err.textContent='⏳ لحظات...';
+  try{
+    if(create){const r=await Cloud.signUp(email,pw);if(r.needsConfirm){err.style.color='var(--g)';err.textContent='تم إنشاء الحساب. افتحي بريدك واضغطي رابط التأكيد ثم اضغطي «دخول».';return}}
+    else await Cloud.signIn(email,pw);
+    closeSheets();await cloudAfterLogin();
+  }catch(e){err.style.color='var(--r)';err.textContent=Cloud.arabicError(e)}
+}
+async function cloudAfterLogin(){
+  render();
+  try{
+    const l=await Cloud.latest(),hasLocal=!Cloud.isEmpty(db);
+    if(!l){if(hasLocal){await Cloud.run(()=>db,true);toast('تم تفعيل النسخ السحابي ورفع بياناتك','ok')}else toast('تم تسجيل الدخول','ok');return}
+    const info=l.items+' صنف و'+l.sales+' فاتورة بيع بتاريخ '+l.day;
+    if(!hasLocal){if(await ask('وجدنا نسخة سحابية ('+info+'). استرجاعها على هذا الجهاز؟','استرجاع','g'))await cloudRestore(true);return}
+    sheet('أيهما نعتمد؟','<p>على هذا الجهاز بيانات، وفي السحابة نسخة ('+info+').</p>',[
+      {t:'رفع بيانات هذا الجهاز',c:'g',fn:async()=>{await Cloud.run(()=>db,true);toast('تم الرفع','ok')}},
+      {t:'استرجاع نسخة السحابة',c:'s',fn:()=>{cloudRestore(true)}},{t:'لاحقاً',c:'s'}],{nofocus:1});
+  }catch(e){toast(Cloud.arabicError(e),'err')}
+}
+async function cloudRestore(skip){
+  if(!skip&&!await ask('سيتم استبدال بيانات هذا الجهاز ببيانات آخر نسخة سحابية. متابعة؟','استرجاع','d'))return;
+  try{
+    const d=await Cloud.download();if(!d)return toast('لا توجد نسخة سحابية','warn');
+    await Store.snapshotNow(JSON.stringify(db),'قبل الاسترجاع');
+    const pin=db.pin,bk=db.lastBackup;
+    db=Core.migrate(d);db.pin=pin;db.lastBackup=bk;save();render();toast('تم الاسترجاع من السحابة','ok');
+  }catch(e){toast(Cloud.arabicError(e),'err')}
+}
+async function cloudNow(){
+  toast('جارٍ الرفع...');
+  const ok=await Cloud.run(()=>db,true);
+  toast(ok?'تم الرفع إلى السحابة':(Cloud.status().lastErr||'لا توجد بيانات لرفعها'),ok?'ok':'err');
+}
+async function cloudOut(){if(await ask('تسجيل الخروج يوقف النسخ السحابي على هذا الجهاز (بياناتك تبقى في السحابة). متابعة؟','خروج')){await Cloud.signOut();render();toast('تم تسجيل الخروج','ok')}}
+
 if('serviceWorker' in navigator&&!NATIVE)navigator.serviceWorker.register('sw.js').catch(()=>{});
 addEventListener('unhandledrejection',()=>toast('حدث خطأ غير متوقع','err'));
 async function init(){
@@ -418,6 +486,9 @@ async function init(){
     document.getElementById('main').innerHTML='<div class="card" style="margin:30px"><h2>تعذر قراءة البيانات</h2><p>لم يتم حذف أي شيء. أغلقي التطبيق وافتحيه من جديد.</p><button class="btn" onclick="location.reload()">إعادة المحاولة</button></div>';
     return;
   }
-  Store.persist();render();lockScreen();
+  Store.persist();
+  await Cloud.init();Cloud.onChange(updateCloudUI);
+  addEventListener('online',()=>Cloud.run(()=>db));
+  render();lockScreen();Cloud.resume(()=>db);
 }
 init();
